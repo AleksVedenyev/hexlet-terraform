@@ -30,3 +30,9 @@ variable "resource_labels" {
     environment = "dev"
   }
 }
+
+ variable "yc_folder_id" {
+  description  = "Folder id in Cloud"
+  type         = string
+ }
+
