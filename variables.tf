@@ -31,8 +31,38 @@ variable "resource_labels" {
   }
 }
 
+ variable "yc_iam_token" {
+  description  = "IAM token for YC"
+  type         = string
+ }
+
+ variable "yc_cloud_id" {
+  description  = "Cloud id"
+  type         = string
+ }
+
  variable "yc_folder_id" {
   description  = "Folder id in Cloud"
   type         = string
  }
 
+ variable "db_name" {
+  description  = "Database name"
+  type         = string
+ }
+
+  variable "db_user" {
+  description  = "Database User"
+  type         = string
+ }
+
+  variable "db_password" {
+  description  = "Database User password"
+  type         = string
+ }
+
+  variable "yc_postgresql_version" {
+  description  = "PostgresSQL version"
+  type         = string
+ }
+ 
