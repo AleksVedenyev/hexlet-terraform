@@ -13,102 +13,41 @@ resource "yandex_vpc_subnet" "subnet" {
   v4_cidr_blocks = ["192.168.192.0/24"]
 }
 
-# Создаем кластер БД, саму БД и пользователя
-
-resource "yandex_mdb_postgresql_cluster" "dbcluster" {
-  name        = "tfhexlet"
-  environment = "PRESTABLE"
-  network_id  = yandex_vpc_network.net.id
-
-  config {
-    version = var.yc_postgresql_version
-    resources {
-      resource_preset_id = "s2.micro"
-      disk_type_id       = "network-ssd"
-      disk_size          = 15
-    }
-    postgresql_config = {
-      max_connections = 100
-    }
-  }
-
-  maintenance_window {
-    type = "WEEKLY"
-    day  = "SAT"
-    hour = 12
-  }
-
-  host {
-    zone      = var.availability_zone
-    subnet_id = yandex_vpc_subnet.subnet.id
-  }
-}
-
-resource "yandex_mdb_postgresql_user" "dbuser" {
-  cluster_id = yandex_mdb_postgresql_cluster.dbcluster.id
-  name       = var.db_user
-  password   = var.db_password
-}
-
-resource "yandex_mdb_postgresql_database" "db" {
-  cluster_id = yandex_mdb_postgresql_cluster.dbcluster.id
-  name       = var.db_name
-  owner      = yandex_mdb_postgresql_user.dbuser.name
-  lc_collate = "en_US.UTF-8"
-  lc_type    = "en_US.UTF-8"
-}
-
-# Актуальный образ Ubuntu с предустановленным Docker
-
-data "yandex_compute_image" "img" {
-  family = "container-optimized-image"
-}
-
 # Создаем сервер
 
-resource "yandex_compute_instance" "vm" {
-  name = "tfhexlet"
-  zone = var.availability_zone
+module "vm1" {
+  source      = "./modules/vm"
+  subnet_id  = yandex_vpc_subnet.subnet.id
+  name        = "test-vm-1"
 
-  resources {
-    cores  = var.instance_cpu_and_ram.cores
-    memory = var.instance_cpu_and_ram.memory
-  }
-
-  boot_disk {
-    initialize_params {
-      image_id = data.yandex_compute_image.img.id
+  instance_cpu_and_ram = {
+      cores     = 2
+      memory    = 4
     }
-  }
+}
 
-  network_interface {
-    subnet_id = yandex_vpc_subnet.subnet.id
-    nat       = true
-  }
+module "vm2" {
+  source      = "./modules/vm"
+  subnet_id  = yandex_vpc_subnet.subnet.id
+  name        = "test-vm-2"
+}
 
-  metadata = {
-    ssh-keys = "ubuntu:${file("~/.ssh/id_ed25519.pub")}"
-  }
+output "internal_ip_of_VM1" {
+    description = "Internal IP of VM1"
+    value       = module.vm1.internal_ip
+}
 
-  connection {
-    type        = "ssh"
-    user        = "ubuntu"
-    private_key = file("~/.ssh/id_ed25519")
-    host        = self.network_interface[0].nat_ip_address
-  }
+output "external_ip_of_VM1" {
+    description = "External IP of VM1"
+    value       = module.vm1.external_ip
+}
 
-  provisioner "remote-exec" {
-  inline = [
-<<EOT
-sudo docker run -d -p 0.0.0.0:80:3000 \
-  -e DB_TYPE=postgres \
-  -e DB_NAME=${var.db_name} \
-  -e DB_HOST=${yandex_mdb_postgresql_cluster.dbcluster.host[0].fqdn} \
-  -e DB_PORT=6432 \
-  -e DB_USER=${var.db_user} \
-  -e DB_PASS=${var.db_password} \
-  ghcr.io/requarks/wiki:2
-EOT
-    ]
- }
+output "internal_ip_of_VM2" {
+    description = "Internal IP of VM2"
+    value       = module.vm2.internal_ip
+}
+
+output "external_ip_of_VM2" {
+    description = "External IP of VM2"
+    value       = module.vm2.external_ip
 }
